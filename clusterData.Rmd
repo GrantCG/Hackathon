@@ -1,0 +1,80 @@
+---
+title: "absenteeismR"
+output: html_document
+---
+
+Had a problem with reshape and tidyverse.
+
+```{r}
+install.packages("reshape")
+install.packages("reshape2")
+install.packages("tidyverse")
+```
+
+Load applicable libraries.
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dbplyr)
+library(cluster)
+library(fpc)
+```
+
+Head to check the data table, then remove the "reasonForAbsence.Text" by assigning NULL.
+```{r}
+head(df)
+df$reasonForAbsence.Text. <- NULL
+```
+
+Aggregate all data points on primary key, take the mean of all data points for aggregation.
+```{r}
+df <- aggregate(df, by=list(df$ID), FUN=mean)
+head(df)
+```
+
+Cluster the project using kmeans, centers determined to be 5 using Elbow Technique
+```{r}
+cluster <- kmeans(df, centers=5)
+plotcluster(df, cluster$cluster)
+```
+
+Using qplot for graphing purposes (do not use discrete variables such as Day or Season as they have been averaged due to aggregation.)
+```{r}
+qplot(x=df$Day.of.the.week, 
+      y=df$Distance.from.Residence.to.Work, 
+      data=df, 
+      colour = df$Day.of.the.week, 
+      geom = c("point", "smooth"),
+      main = "Absenteeism by Day",
+      xlab = "Day", 
+      ylab = "Absenteeism in hours")
+```
+
+Elbow method for deciding clustering volume, 4 through 6 is applicable.
+```{r}
+#Elbow Method for finding the optimal number of clusters
+set.seed(123)
+# Compute and plot wss for k = 2 to k = 15.
+k.max <- 15
+wss <- sapply(1:k.max, function(k){kmeans(df, k, nstart=50,iter.max = 15 )$tot.withinss})
+wss
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+```
+
+Head function to do root-cause on reasons for each of the clusters.
+```{r}
+head(cluster)
+```
+
+Adding the clustering groups back into the dataset
+```{r}
+kMeansResult <- factor(cluster$cluster)
+df2 <- df
+df2$cluster <- kMeansResult
+head(df2)
+```
+
